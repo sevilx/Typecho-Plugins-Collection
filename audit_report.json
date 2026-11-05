@@ -1,0 +1,22 @@
+{
+  "root": "<repository root>",
+  "php_files": 41,
+  "plugins": 10,
+  "high": 0,
+  "low": 0,
+  "findings": [],
+  "per_plugin": {
+    "ShortLinks": {
+      "远程/变量读取": 1,
+      "反序列化": 1
+    },
+    "TpCache": {
+      "反序列化": 1
+    },
+    "XCaptcha": {
+      "远程/变量读取": 2
+    }
+  },
+  "legacy_class_references": 349,
+  "legacy_class_kinds": 31
+}
