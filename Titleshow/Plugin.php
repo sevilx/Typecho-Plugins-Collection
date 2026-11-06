@@ -76,23 +76,43 @@ class Titleshow_Plugin implements Typecho_Plugin_Interface
      * @return void
      */
 public static function tshow($v, $obj) {
-$tixing = Typecho_Widget::widget('Widget_Options')->plugin('Titleshow')->tixing;//获取设置参数
-if(empty($tixing)){$tixing='请输入密码访问';} //如果未设置则设置默认文字
-$v['titleshow'] = false;
-/** 如果访问权限被禁止【就是如果需要密码】 */
-if ($v['hidden']){
-$v['text'] = '
+    if (!is_array($v)) {
+        return $v;
+    }
+
+    $tixing = '';
+    try {
+        $tixing = Typecho_Widget::widget('Widget_Options')->plugin('Titleshow')->tixing; //获取设置参数
+    } catch (\Throwable $e) {
+        // 插件文件在目录里但尚未启用时配置不存在，用默认提示即可
+    }
+    if (empty($tixing)) {
+        $tixing = '请输入密码访问';
+    }
+    $v['titleshow'] = false;
+
+    /** 如果访问权限被禁止【就是如果需要密码】
+     *  PHP 8 下直接读 $v['hidden'] 会在没有该键的行（侧栏「最新评论」等
+     *  复用 filter 钩子的数据）里抛 Warning，警告文本会被直接写进页面，
+     *  把 <a href="..."> 冲成坏标签。改用 empty() 并给其余键兜底。 */
+    if (!empty($v['hidden'])) {
+        $permalink = isset($v['permalink']) ? (string) $v['permalink'] : '';
+        $cid = isset($v['cid']) ? (int) $v['cid'] : 0;
+        $v['text'] = '
 !!!
-<form class="protected" action="' . Typecho_Widget::widget('Widget_Security')->getTokenUrl($v['permalink']). '" method="post">'.'<p class="word">'.$tixing.'</p>'.'<p><input type="password" class="text" name="protectPassword" /><input type="hidden" name="protectCID" value="' . $v['cid'] . '" />&nbsp;<input type="submit" class="submit" value="' . _t('提交') . '" /></p>'.'</form>
+<form class="protected" action="' . htmlspecialchars(Typecho_Widget::widget('Widget_Security')->getTokenUrl($permalink), ENT_QUOTES, 'UTF-8') . '" method="post">'
+            . '<p class="word">' . htmlspecialchars($tixing, ENT_QUOTES, 'UTF-8') . '</p>'
+            . '<p><input type="password" class="text" name="protectPassword" /><input type="hidden" name="protectCID" value="' . $cid . '" />&nbsp;<input type="submit" class="submit" value="' . _t('提交') . '" /></p>'
+            . '</form>
 !!!
 ';
-/** 跳过系统默认 */
-$v['hidden'] = false;
-/** 用于模板判断插件 */
-$v['titleshow'] = true;
-}
-/** 返回数据 */
-return $v; 
+        /** 跳过系统默认 */
+        $v['hidden'] = false;
+        /** 用于模板判断插件 */
+        $v['titleshow'] = true;
+    }
+    /** 返回数据 */
+    return $v;
 }
 
 }

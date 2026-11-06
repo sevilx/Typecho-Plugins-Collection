@@ -50,12 +50,16 @@ class PageViews_Plugin implements Typecho_Plugin_Interface
     public static function statisticalPageViews()
     {
         if (Typecho_Widget::widget('Widget_Archive')->is('single')) {
-            $options = Helper::options();
-            $pluginConfig = $options->plugin(self::$pluginName);
-            $views = $pluginConfig->views;
-            $views++;
-            //更新浏览量
-            Helper::configPlugin(self::$pluginName, array('views' => $views));
+            try {
+                $pluginConfig = Helper::options()->plugin(self::$pluginName);
+                $views = (int) $pluginConfig->views;
+                $views++;
+                //更新浏览量
+                Helper::configPlugin(self::$pluginName, array('views' => $views));
+            } catch (\Throwable $e) {
+                // 插件文件已放进目录、但还没在后台启用时配置尚未写入。
+                // 此时静默跳过，不要把一个统计插件变成全站 500。
+            }
         }
     }
 
@@ -73,11 +77,14 @@ class PageViews_Plugin implements Typecho_Plugin_Interface
      */
     public static function showPageViews($before = '总访问量：', $after = '次')
     {
-        $options = Helper::options();
-        $pluginConfig = $options->plugin(self::$pluginName);
-        $views = $pluginConfig->views;
-        $views++;
-        $res = $before . $views . $after;
-        echo $res;
+        $views = 0;
+        try {
+            $pluginConfig = Helper::options()->plugin(self::$pluginName);
+            $views = (int) $pluginConfig->views + 1;
+        } catch (\Throwable $e) {
+            // 主题常以 class_exists() 判断插件是否存在；只要文件在目录里就会
+            // 命中，即使插件未启用。这里降级为 0，避免抛异常拖垮侧栏。
+        }
+        echo htmlspecialchars($before . $views . $after, ENT_QUOTES, 'UTF-8');
     }
 }

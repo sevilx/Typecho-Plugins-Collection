@@ -95,13 +95,15 @@ class ShortLinks_Action extends Typecho_Widget implements Widget_Interface_Do
      */
     public function shortlink()
     {
-        $requestString = $this->request->key;
-        $siteUrl = preg_replace("/https?:\/\//", "", Typecho_Widget::widget('Widget_Options')->siteUrl);
+        $requestString = (string) $this->request->key;
+        // 去掉协议与结尾斜杠：否则站点首页 referer（无尾斜杠）会被判为站外而拒绝跳转
+        $siteUrl = rtrim((string) preg_replace('~^https?://~i', '',
+            (string) Typecho_Widget::widget('Widget_Options')->siteUrl), '/');
         $pOption = Typecho_Widget::widget('Widget_Options')->Plugin('ShortLinks'); // 插件选项
-        $referer = $this->request->getReferer();
+        $referer = (string) $this->request->getReferer(); // getReferer() 可能返回 null
         $template = $pOption->goTemplate == 'NULL' ? null : $pOption->goTemplate;
         // 允许空 referer
-        if (empty($referer) && $pOption->nullReferer === "1") {
+        if ($referer === '' && (string) $pOption->nullReferer === '1') {
             $referer = $siteUrl;
         }
 
@@ -143,8 +145,8 @@ class ShortLinks_Action extends Typecho_Widget implements Widget_Interface_Do
         }
         $safeTarget = htmlspecialchars($target, ENT_QUOTES, 'UTF-8');
         if ($template === 'NULL' || $template === null) {
-            // 无跳转页面
-            $this->response->redirect(htmlspecialchars_decode($target), 301);
+            // 无跳转页面（target 已通过 isSafeRedirectTarget 校验，无需再解码实体）
+            $this->response->redirect($target, 301);
         } else {
             // 安全加固：模板名白名单，杜绝 ../ 路径遍历与任意文件读取
             if (!preg_match('/^[A-Za-z0-9_\-]+$/', (string) $template)) {
@@ -280,6 +282,8 @@ class ShortLinks_Action extends Typecho_Widget implements Widget_Interface_Do
      */
     private function __relpaceCallback($matches)
     {
-        return $this->options->{$matches[1]};
+        // 模板里 {{title}} / {{siteUrl}} / {{logoUrl}} 等直接落在 HTML 属性中，
+        // 站点名或 logo 地址含引号时会破坏标签，统一做属性转义。
+        return htmlspecialchars((string) $this->options->{$matches[1]}, ENT_QUOTES, 'UTF-8');
     }
 }

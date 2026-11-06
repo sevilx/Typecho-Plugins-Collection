@@ -1,74 +1,136 @@
+/* PostToc 1.4.1 — 文章目录样式
+ *
+ * 深浅色策略：插件自己声明局部变量，不依赖主题是否加载了增强层。
+ *  1. 优先跟随主题/浏览器写入的 data-theme / .dark / .night；
+ *  2. 没有标记时跟随系统 prefers-color-scheme；
+ *  3. 后台自定义颜色只在「与默认值不同」时由 script.js 写入
+ *     --toc-*-user，其余情况由下面的深色变量接管，避免出现
+ *     深色底 + #777777 文字这种低对比组合。
+ */
+
+#post-toc,
+.toc-toggle {
+    --toc-bg: #ffffff;
+    --toc-text: #4a5261;
+    --toc-link-color: #6b7482;
+    --toc-active-link-color: #bc6462;
+    --toc-active-bg-color: rgba(200, 200, 200, 0.22);
+    --toc-border: #e8ecf2;
+    --toc-shadow: 0 1px 2px rgba(20, 32, 54, 0.04),
+                  0 10px 28px -16px rgba(20, 32, 54, 0.22);
+    --toc-accent: #487b96;
+    --toc-accent-hover: #3c6b83;
+    --toc-btn-text: #ffffff;
+    --toc-scrollbar: rgba(0, 0, 0, 0.2);
+}
+
+/* 主题显式声明深色（DUX 1.4.0 会在 <html> 上写 data-theme="dark"） */
+:is(html[data-theme="dark"], body[data-theme="dark"],
+    html[data-mode="dark"], body[data-mode="dark"],
+    html[data-theme="night"], body[data-theme="night"],
+    html.dark, body.dark, html.night, body.night) :is(#post-toc, .toc-toggle) {
+    --toc-bg: #1a202b;
+    --toc-text: #c8d1de;
+    --toc-link-color: #a9b5c5;
+    --toc-active-link-color: #7db3f5;
+    --toc-active-bg-color: rgba(125, 179, 245, 0.14);
+    --toc-border: #2b3442;
+    --toc-shadow: 0 1px 2px rgba(0, 0, 0, 0.24),
+                  0 12px 30px -18px rgba(0, 0, 0, 0.7);
+    --toc-accent: #2f6fbd;
+    --toc-accent-hover: #3f82d3;
+    --toc-btn-text: #f2f6fb;
+    --toc-scrollbar: rgba(200, 210, 225, 0.28);
+}
+
+/* 主题没有写标记时，跟随系统偏好；:not() 保证不与上面的显式声明打架 */
+@media (prefers-color-scheme: dark) {
+    html:not([data-theme]):not([data-mode]):not(.dark):not(.night)
+        :is(#post-toc, .toc-toggle) {
+        --toc-bg: #1a202b;
+        --toc-text: #c8d1de;
+        --toc-link-color: #a9b5c5;
+        --toc-active-link-color: #7db3f5;
+        --toc-active-bg-color: rgba(125, 179, 245, 0.14);
+        --toc-border: #2b3442;
+        --toc-shadow: 0 1px 2px rgba(0, 0, 0, 0.24),
+                      0 12px 30px -18px rgba(0, 0, 0, 0.7);
+        --toc-accent: #2f6fbd;
+        --toc-accent-hover: #3f82d3;
+        --toc-btn-text: #f2f6fb;
+        --toc-scrollbar: rgba(200, 210, 225, 0.28);
+    }
+}
+
 #post-toc {
     position: fixed;
     left: 40px;
     top: 200px;
-    width: 300px; 
-    background: #ffffff;
-    padding: 15px;
-    border: 1px solid #fff;
-    overflow-y: auto;
-    padding-top: 0; 
+    width: 300px;
+    max-width: calc(100vw - 40px);
     max-height: 70vh;
+    box-sizing: border-box;
+    padding: 0 15px 15px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--toc-bg);
+    color: var(--toc-text);
+    border: 1px solid var(--toc-border);
+    border-radius: 10px;
+    box-shadow: var(--toc-shadow);
     z-index: 1000;
     cursor: move;
-    box-shadow: 0 0px 15px rgba(0, 0, 0, 0.11);
-    border-radius: 8px;
-    transition: box-shadow 0.3s ease, transform 0.2s ease;
-    scrollbar-width: thin; 
-    scrollbar-color: rgba(0, 0, 0, 0.2) transparent; 
-}
-
-#post-toc::-webkit-scrollbar {
-    width: 2px;
-}
-
-#post-toc::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.2); 
-    border-radius: 10px; 
-}
-
-#post-toc::-webkit-scrollbar-track {
-    background: transparent; 
+    transition: box-shadow 0.3s ease, transform 0.2s ease,
+                background-color 0.2s ease;
+    scrollbar-width: thin;
+    scrollbar-color: var(--toc-scrollbar) transparent;
 }
 
 #post-toc.hidden {
     display: none;
 }
 
+#post-toc::-webkit-scrollbar { width: 4px; }
+#post-toc::-webkit-scrollbar-thumb {
+    background-color: var(--toc-scrollbar);
+    border-radius: 10px;
+}
+#post-toc::-webkit-scrollbar-track { background: transparent; }
+
 #post-toc ul {
     list-style: none;
-    padding: 10px 0 0 0; 
+    padding: 10px 0 0 0;
     margin: 0;
 }
-
 
 #post-toc ul li {
     margin-bottom: 3px;
 }
 
- #post-toc h3 {
+#post-toc h3 {
     position: sticky;
     top: 0;
-    background-color: #ffffff;
     z-index: 1;
-    letter-spacing: 4px; 
-    padding: 10px 0;
-    margin: 0; 
-    font-size: 16px;
-    font-weight: bold;
-    color: #5a5a5a;
+    background-color: var(--toc-bg);
+    color: var(--toc-text);
+    letter-spacing: 4px;
+    padding: 12px 0 10px;
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
     text-align: center;
-    border-bottom: 1px solid #ebebeb;
+    border-bottom: 1px solid var(--toc-border);
 }
 
 #post-toc ul li a {
-    color: #777777; 
-    font-size: 14px; 
-    letter-spacing: 0.2px; 
-    text-decoration: none;
     display: block;
-    padding: 5px 5px;
-    border-radius: 4px;
+    padding: 5px 8px;
+    border-radius: 5px;
+    font-size: 14px;
+    letter-spacing: 0.2px;
+    text-decoration: none;
+    /* 后台只在自定义了颜色时才写 --toc-link-color-user */
+    color: var(--toc-link-color-user, var(--toc-link-color));
     transition: background-color 0.2s ease, color 0.2s ease;
     white-space: nowrap;
     overflow: hidden;
@@ -77,8 +139,14 @@
 
 #post-toc ul li a:hover,
 #post-toc ul li a.active {
-    background-color: rgba(200, 200, 200, 0.2);
-    color: #bc6462;
+    color: var(--toc-active-link-color-user, var(--toc-active-link-color));
+    background-color: var(--toc-active-bg-user, var(--toc-active-bg-color));
+}
+
+#post-toc ul li a:focus-visible,
+.toc-toggle:focus-visible {
+    outline: 2px solid var(--toc-accent);
+    outline-offset: 2px;
 }
 
 .toc-toggle {
@@ -86,28 +154,64 @@
     bottom: 20px;
     right: 20px;
     z-index: 1100;
-    padding: 10px 20px;
-    background-color: #487b96;
-    color: white;
-    border: none;
-    border-radius: 5px;
+    padding: 9px 16px;
+    color: var(--toc-btn-text);
+    background-color: var(--toc-accent);
+    border: 1px solid transparent;
+    border-radius: 7px;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.4;
     cursor: pointer;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    transition: background-color 0.2s ease;
+    box-shadow: var(--toc-shadow);
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
-.toc-toggle:hover {
-    background-color: #43677a;
+.toc-toggle:hover { background-color: var(--toc-accent-hover); }
+.toc-toggle:active { transform: translateY(1px); }
+
+/* 左侧留白不足时（1366 / 1440 等常见桌面宽度），script.js 会加上
+   .toc-inline，把 fixed 悬浮目录降级成正文流里的普通卡片。
+   目录因此永远不会压住文章标题和正文开头。 */
+#post-toc.toc-inline {
+    position: static;
+    width: auto;
+    max-width: 100%;
+    max-height: 260px;
+    margin: 0 0 24px;
+    padding: 0 16px 14px;
+    box-shadow: none;
+    cursor: default;
+}
+
+#post-toc.toc-inline h3 {
+    text-align: left;
+    letter-spacing: 1px;
+    padding-left: 2px;
+}
+
+#post-toc.toc-inline ul li a {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
 }
 
 @media (max-width: 768px) {
     #post-toc {
-        position: fixed;
-        bottom: 70px; 
+        bottom: 70px;
         right: 20px;
-        left: auto; 
-        top: auto; 
-        width: 300px; 
+        left: auto;
+        top: auto;
+        width: min(300px, calc(100vw - 40px));
+        max-height: min(60vh, 420px);
     }
+    .toc-toggle { bottom: 16px; right: 16px; }
 }
 
+@media (prefers-reduced-motion: reduce) {
+    #post-toc, .toc-toggle, #post-toc ul li a { transition: none; }
+}
+
+@media print {
+    #post-toc, .toc-toggle { display: none !important; }
+}

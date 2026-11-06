@@ -6,6 +6,9 @@
   "low": 0,
   "findings": [],
   "per_plugin": {
+    "Access": {
+      "SQL 字符串拼接": 2
+    },
     "ShortLinks": {
       "远程/变量读取": 1,
       "反序列化": 1
@@ -17,6 +20,6 @@
       "远程/变量读取": 2
     }
   },
-  "legacy_class_references": 349,
+  "legacy_class_references": 324,
   "legacy_class_kinds": 31
 }

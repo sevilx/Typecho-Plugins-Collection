@@ -14,6 +14,20 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
 class PostToc_Plugin implements Typecho_Plugin_Interface
 {
+    /**
+     * 单次请求内是否已注入资源。
+     *
+     * 原版把 CSS 挂在 header 钩子、把配置与 script.js 挂在 footer 钩子。
+     * 但 Typecho 只会在主题显式调用 $this->footer() 时触发 footer 钩子，
+     * 不少主题（含 DUX 1.4.0 之前）的 footer.php 没有这一句，结果目录
+     * 样式加载了、脚本却永远不加载，表现为「插件完全不起作用」。
+     *
+     * 现在两个钩子都注册、共用一段注入逻辑并用此标记去重：
+     * 无论主题调用 header、footer 还是两者都调用，资源都恰好输出一次。
+     * 同时保留 footer 钩子，兼容旧版本已写进数据库 handles 的站点。
+     */
+    private static $assetsInjected = false;
+
     public static function activate()
     {
         Typecho_Plugin::factory('Widget_Archive')->header = array('PostToc_Plugin', 'renderHeader');
@@ -103,38 +117,86 @@ public static function config(Typecho_Widget_Helper_Form $form)
 
     public static function personalConfig(Typecho_Widget_Helper_Form $form){}
 
-    public static function renderHeader()
+    /** 目录只在文章页显示，独立页面不显示 */
+    private static function isArticlePage()
     {
         $widget = Typecho_Widget::widget('Widget_Archive');
-        if ($widget->is('single') && !$widget->is('page')) {
-            echo '<link rel="stylesheet" href="' . Helper::options()->pluginUrl . '/PostToc/static/style.css">';
+        return $widget->is('single') && !$widget->is('page');
+    }
+
+    /**
+     * 读取后台配置并回落默认值。
+     * 老站点升级后新字段可能为空，直接 json_encode(null) 会让脚本里的
+     * Number(verticalOffset) 变成 NaN，目录定位失效。
+     */
+    private static function settings()
+    {
+        $defaults = array(
+            'defaultDisplay'   => array('defaultDisplay', '1'),
+            'mobileDisplay'    => array('mobileDisplay', '1'),
+            'navbarOffset'     => array('offset', '10'),
+            'verticalOffset'   => array('verticalOffset', '0'),
+            'horizontalOffset' => array('horizontalOffset', '0'),
+            'textColor'        => array('textColor', '#777777'),
+            'activeTextColor'  => array('activeTextColor', '#bc6462'),
+            'backgroundColor'  => array('backgroundColor', '#C8C8C870'),
+        );
+
+        $config = null;
+        try {
+            $config = Typecho_Widget::widget('Widget_Options')->plugin('PostToc');
+        } catch (\Throwable $e) {
+            // 插件刚复制进目录、尚未在后台启用时配置不存在，用默认值即可
+        }
+
+        $out = array();
+        foreach ($defaults as $jsName => $item) {
+            $value = $config ? $config->{$item[0]} : null;
+            $out[$jsName] = ($value === null || $value === '') ? $item[1] : (string) $value;
+        }
+        return $out;
+    }
+
+    /** 统一注入 CSS、配置与脚本 */
+    private static function renderAssets()
+    {
+        if (self::$assetsInjected) {
+            return;
+        }
+        self::$assetsInjected = true;
+
+        $base = htmlspecialchars(
+            rtrim((string) Helper::options()->pluginUrl, '/') . '/PostToc',
+            ENT_QUOTES,
+            'UTF-8'
+        );
+        // 后台可填颜色值，HEX_* 防止管理员输入 </script> 提前闭合脚本块
+        $flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES;
+
+        echo '<link rel="stylesheet" href="' . $base . '/static/style.css">' . "\n";
+        echo '<script>';
+        foreach (self::settings() as $jsName => $value) {
+            $json = json_encode($value, $flags);
+            echo 'var ' . $jsName . ' = ' . ($json === false ? '""' : $json) . ';';
+        }
+        echo '</script>' . "\n";
+        // defer 脚本在 DOM 解析完成后、DOMContentLoaded 之前执行：
+        // 既能拿到上面的全局变量，也不阻塞首屏渲染。
+        echo '<script defer src="' . $base . '/static/script.js"></script>' . "\n";
+    }
+
+    public static function renderHeader()
+    {
+        if (self::isArticlePage()) {
+            self::renderAssets();
         }
     }
 
     public static function renderFooter()
     {
-        $widget = Typecho_Widget::widget('Widget_Archive');
-        if ($widget->is('single') && !$widget->is('page')) {
-            $defaultDisplay = Typecho_Widget::widget('Widget_Options')->plugin('PostToc')->defaultDisplay;
-            $offset = Typecho_Widget::widget('Widget_Options')->plugin('PostToc')->offset;
-            $mobileDisplay = Typecho_Widget::widget('Widget_Options')->plugin('PostToc')->mobileDisplay;
-            $textColor = Typecho_Widget::widget('Widget_Options')->plugin('PostToc')->textColor;
-            $activeTextColor = Typecho_Widget::widget('Widget_Options')->plugin('PostToc')->activeTextColor;
-            $backgroundColor = Typecho_Widget::widget('Widget_Options')->plugin('PostToc')->backgroundColor;
-            $verticalOffset = Typecho_Widget::widget('Widget_Options')->plugin('PostToc')->verticalOffset; // 获取垂直偏移量
-            $horizontalOffset = Typecho_Widget::widget('Widget_Options')->plugin('PostToc')->horizontalOffset; // 获取水平偏移量
-
-            echo '<script>';
-            echo 'var defaultDisplay = ' . json_encode($defaultDisplay) . ';';
-            echo 'var navbarOffset = ' . json_encode($offset) . ';';
-            echo 'var mobileDisplay = ' . json_encode($mobileDisplay) . ';';  // 输出手机端显示设置
-            echo 'var textColor = ' . json_encode($textColor) . ';';
-            echo 'var activeTextColor = ' . json_encode($activeTextColor) . ';';
-            echo 'var backgroundColor = ' . json_encode($backgroundColor) . ';';
-            echo 'var verticalOffset = ' . json_encode($verticalOffset) . ';'; // 输出垂直偏移量
-            echo 'var horizontalOffset = ' . json_encode($horizontalOffset) . ';'; // 输出水平偏移量
-            echo '</script>';
-            echo '<script src="' . Helper::options()->pluginUrl . '/PostToc/static/script.js"></script>';
+        // 兜底：极少数主题不调用 header() 只调用 footer()
+        if (!self::$assetsInjected && self::isArticlePage()) {
+            self::renderAssets();
         }
     }
 }
