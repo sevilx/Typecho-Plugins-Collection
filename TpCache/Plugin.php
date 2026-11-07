@@ -179,19 +179,15 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
                 //如果超时
                 if ($data['c_time'] + self::$plugin_config->expire <= time()) {
 
-                    if (self::$plugin_config->is_debug) echo "Expired!\n";
                     $data['c_time'] = $data['c_time'] + 20;
                     self::set(self::$path, serialize($data));
                 } else {
-                    if (self::$plugin_config->is_debug) echo "Hit!\n";
-                    if ($data['html']) echo $data['html'];
-                    $end = microtime(true);
-                    $time = number_format(($end - $start), 6);
-                    if (self::$plugin_config->is_debug) echo 'This page loaded in ', $time, ' seconds';
+                    // 缓存命中：输出历史完整 HTML 后终止本次渲染。
+                    // die 会跳过后续钩子（PageViews/Access 统计不累加），属本插件
+                    // 固有取舍；调试串一律不得进入响应体。
+                    if (!empty($data['html'])) echo $data['html'];
                     die;
                 }
-            } else {
-                if (self::$plugin_config->is_debug) echo "Can't find cache!";
             }
 
         } catch (Exception $e) {
@@ -253,9 +249,7 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             if (preg_match($route['regx'], $path, $matches)) {
                 $key = str_replace($exclude, '', str_replace($exclude, '', $key));
 
-                if (in_array($key, self::$plugin_config->cache_page)) {
-                    if (self::$plugin_config->is_debug) echo "This page needs to be cached!\n" . '
-<a href="http://www.phpgao.com/tpcache_for_typecho.html" target="_blank"> Bug Report </a>';
+                if (in_array($key, (array) (self::$plugin_config->cache_page ?? array()))) {
                     self::$path = $path;
                     return true;
                 }
@@ -285,7 +279,6 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
             $data['c_time'] = time();
             $data['html'] = $html;
             //更新缓存
-            if (self::$plugin_config->is_debug) echo "Cache updated!\n";
             self::set(self::$key, serialize($data));
         }
 
@@ -442,18 +435,15 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
      */
     public static function delete($path, $del_home = null)
     {
-        $prefixs = array(
-            'http'
-            . '://' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] :
-                ($_SERVER['SERVER_NAME'] . (in_array($_SERVER['SERVER_PORT'], array(80, 443))
-                        ? '' : ':' . $_SERVER['SERVER_PORT']))
-            ),
-            'https'
-            . '://' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] :
-                ($_SERVER['SERVER_NAME'] . (in_array($_SERVER['SERVER_PORT'], array(80, 443))
-                        ? '' : ':' . $_SERVER['SERVER_PORT']))
-            ),
-        );
+        // CLI / 反代未透传时 SERVER_NAME、SERVER_PORT 可能缺失，逐项兜底。
+        $host = isset($_SERVER['HTTP_HOST']) ? (string) $_SERVER['HTTP_HOST']
+            : (string) ($_SERVER['SERVER_NAME'] ?? 'localhost');
+        $port = $_SERVER['SERVER_PORT'] ?? null;
+        if (!isset($_SERVER['HTTP_HOST']) && $port !== null
+            && !in_array((int) $port, array(80, 443), true)) {
+            $host .= ':' . (int) $port;
+        }
+        $prefixs = array('http://' . $host, 'https://' . $host);
         $keys = array();
         if (!is_array($path)) {
             $keys[] = $path;
@@ -464,14 +454,12 @@ class TpCache_Plugin implements Typecho_Plugin_Interface
 
         foreach ($keys as $v) {
             foreach ($prefixs as $prefix) {
-                echo $prefix . $v;
                 @self::$cache->delete(md5($prefix . $v));
             }
         }
 
         if (is_null($del_home)) {
             foreach ($prefixs as $prefix) {
-                echo $prefix . '/';
                 @self::$cache->delete(md5($prefix . '/'));
             }
         }

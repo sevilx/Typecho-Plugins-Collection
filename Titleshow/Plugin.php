@@ -55,7 +55,7 @@ class Titleshow_Plugin implements Typecho_Plugin_Interface
         "阔乐，我想和大阔乐，就差3块钱了！",
                          );
         $tixing = new Typecho_Widget_Helper_Form_Element_Text('tixing', NULL, NULL, _t('密码文字提醒'), _t('不填写则默认为【请输入密码访问】<div class="yaofan"><br>
-        <b>作者 ❤ 语：'.$say[rand(0,9)].'</b><br><br><img src="'.Helper::options()->pluginUrl.'/Titleshow/yaofan.jpg" style="max-width: 100%;">
+        <b>作者 ❤ 语：'.$say[rand(0,9)].'</b><br><br><img src="'.htmlspecialchars((string) Helper::options()->pluginUrl, ENT_QUOTES, 'UTF-8').'/Titleshow/yaofan.jpg" style="max-width: 100%;">
         </div>'));
         $form->addInput($tixing);
     }

@@ -184,7 +184,7 @@ class XCaptcha_Plugin implements Typecho_Plugin_Interface
                 );
                 return;
             }
-            return;
+            return $comment;
         }
 
         // 其他验证码

@@ -57,8 +57,9 @@ class Access_Plugin implements Typecho_Plugin_Interface
         }
         Helper::removePanel(1, self::$panel);
         Helper::removeRoute("access_track_gif");
-        Helper::removeRoute("access_delete_logs");
-        Helper::removeRoute("access_statistic_view");
+        Helper::removeRoute("access_migration");
+        Helper::removeRoute("access_logs");
+        Helper::removeRoute("access_statistic");
     }
 
     /**
@@ -224,10 +225,16 @@ class Access_Plugin implements Typecho_Plugin_Interface
     {
         $config = Typecho_Widget::widget('Widget_Options')->plugin('Access');
         if ($config->writeType == 1) {
-            $index = rtrim(Helper::options()->index, '/');
+            $index = rtrim((string) (Helper::options()->index ?? ''), '/');
+            // 用 json_encode 生成 JS 字符串字面量，任何引号 / 尖括号都被编码。
+            $jsTrackUrl = json_encode($index . '/access/log/track.gif',
+                JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES);
+            if ($jsTrackUrl === false) { $jsTrackUrl = '""'; }
             $access = new Access_Core();
             $parsedArchive = $access->parseArchive($archive);
-            echo "<script type=\"text/javascript\">(function(w){var t=function(){var i=new Image();i.src='{$index}/access/log/track.gif?u='+location.pathname+location.search+location.hash+'&cid={$parsedArchive['content_id']}&mid={$parsedArchive['meta_id']}&rand='+new Date().getTime()};t();var a={};a.track=t;w.Access=a})(this);</script>";
+            $cid = isset($parsedArchive['content_id']) ? (int) $parsedArchive['content_id'] : 0;
+            $mid = isset($parsedArchive['meta_id']) ? (int) $parsedArchive['meta_id'] : 0;
+            echo "<script type=\"text/javascript\">(function(w){var t=function(){var i=new Image();i.src={$jsTrackUrl}+'?u='+location.pathname+location.search+location.hash+'&cid={$cid}&mid={$mid}&rand='+new Date().getTime()};t();var a={};a.track=t;w.Access=a})(this);</script>";
         }
     }
 

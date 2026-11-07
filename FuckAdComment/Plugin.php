@@ -152,15 +152,26 @@ class Plugin implements PluginInterface
         if (strpos(Request::getInstance()->getRequestUri(),'manage-comments.php') === false) return;
 
         // 获取 安全 token 请求时用
+        // 模板把这两个 URL 拼进 JS 单引号字符串：按 JS 字面量转义，
+        // 并只接受 http(s) 与站内绝对路径，避免后台配置注入脚本源。
+        $jsUrl = function ($url) {
+            $url = (string) $url;
+            if ($url !== '' && !preg_match('~^https?://~i', $url)
+                && !preg_match('~^/[A-Za-z0-9_./?=&%-]*$~', $url)) {
+                return '';
+            }
+            return str_replace(array('\\', "'", "\r", "\n", '<'),
+                array('\\\\', "\\'", '', '', '\\u003C'), $url);
+        };
         $params = [
-            '{securityUrl}' => Helper::security()->getIndex('/action/FuckAdComment'),
+            '{securityUrl}' => $jsUrl(Helper::security()->getIndex('/action/FuckAdComment')),
             '{actionMap}' => json_encode(Model::ACTION_MAP),
             '{pluginConfig}' => '',
         ];
 
         // 判断是否是管理员，管理员可访问插件配置链接
         if (User::alloc()->pass('administrator', true)) {
-            $params['{pluginConfig}'] = Options::alloc()->adminUrl('options-plugin.php?config=' . self::$pluginName,true);
+            $params['{pluginConfig}'] = $jsUrl(Options::alloc()->adminUrl('options-plugin.php?config=' . self::$pluginName, true));
         }
 
         // 评论页拉黑操作按钮的模板，放在 Plugin 里面太乱了
@@ -212,7 +223,10 @@ class Plugin implements PluginInterface
                 $msg = '500 Server Error';
                 break;
             case '3':
-                $msg = $config->custom?? '';
+                $msg = $config->custom ?? '';
+                break;
+            default:
+                $msg = '该评论被禁止提交';
                 break;
         }
         $summaryData = Options::alloc()->plugin(self::$summaryKey);
@@ -221,7 +235,7 @@ class Plugin implements PluginInterface
             'filter' => $summaryData['filter'],
         ];
         // 判断是否自动收集
-        if (in_array('autoExt',$config->ext)) {
+        if (in_array('autoExt', (array) ($config->ext ?? array()))) {
             $newSummary['auto'] += Model::autoUpdate($config,$comment);
         }
         // 添加一条拦截记录

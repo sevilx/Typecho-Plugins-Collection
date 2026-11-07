@@ -49,6 +49,11 @@ class ShortLinks_Plugin implements Typecho_Plugin_Interface
         if (strpos($host, '.') === false) {
             return false;
         }
+        // DNS rebinding：127.0.0.1.nip.io / 169.254.169.254.sslip.io 等
+        // 把 IP 字面量伪装成域名前缀，解析后会落到内网或元数据地址。
+        if (preg_match('/^\d{1,3}(?:\.\d{1,3}){3}\./', $host)) {
+            return false;
+        }
         // 纯数字/点形式视为 IP 字面量，拒绝私有段、保留段与进制变形
         if (preg_match('/^[0-9.]+$/', $host)) {
             $ip = filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4);
@@ -241,9 +246,11 @@ class ShortLinks_Plugin implements Typecho_Plugin_Interface
      * @return array|string|string[] $content
      * @throws \Typecho\Plugin\Exception
      */
-    public static function replace(string $text, $widget, $lastResult)
+    public static function replace($text, $widget, $lastResult)
     {
         $text = empty($lastResult) ? $text : $lastResult;
+        // filter 链可能传入 null 或上一个插件的非字符串返回值，统一兜底。
+        $text = is_scalar($text) ? (string) $text : '';
         $pluginOption = self::options('ShortLinks'); // 插件选项
         if ($pluginOption->convert != 1) {
             return $text;
@@ -475,12 +482,16 @@ class ShortLinks_Plugin implements Typecho_Plugin_Interface
      * @return Array
      * @throws \Typecho\Plugin\Exception
      */
-    public static function forceConvert(array $value, $widget, $lastResult): array
+    public static function forceConvert($value, $widget, $lastResult): array
     {
         $value = empty($lastResult) ? $value : $lastResult;
+        // filter 链可能传入 null 或非数组，统一兜底后再改写 text。
+        if (!is_array($value)) {
+            $value = array();
+        }
         $pluginOption = self::options('ShortLinks');
         if ($pluginOption->convert == 1 && $pluginOption->forceSwitch == 1) {
-            $value['text'] = self::autoLink($value['text']);
+            $value['text'] = self::autoLink($value['text'] ?? '');
         }
         return $value;
     }

@@ -27,11 +27,14 @@ class XCaptcha_Request
 		curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_TIMEOUT, 10); // 10 secs timeout
+		// 禁止跟随重定向，防止白名单地址 302 到内网造成 SSRF 绕过
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
 		
 		$response = curl_exec($ch);
 		
 		if (curl_errno($ch)) {
-			echo '请求错误: ' . curl_error($ch);
+			// 不向响应体输出内部网络错误，避免信息泄露与破坏 JSON 结构
+			error_log('XCaptcha verify request failed: ' . curl_error($ch));
 		}
 		
 		curl_close($ch);

@@ -5,3 +5,4 @@ __pycache__/
 Thumbs.db
 *.log
 report.json
+audit_report.json

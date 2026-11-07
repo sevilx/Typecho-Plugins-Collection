@@ -5,7 +5,7 @@ $(document).ready(function () {
       url: "/access/migration",
       method: "post",
       dataType: "json",
-      data: { rpc: 'migrate' },
+      data: { rpc: 'migrate', _: window.accessCsrfToken || '' },
       success: function (res) {
         if (res.code === 0) {
           if (res.data.remain === 0) {

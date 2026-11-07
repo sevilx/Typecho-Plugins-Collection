@@ -1,3 +1,12 @@
+// 只放行站内绝对路径或 http(s)，阻止 javascript:/data: 等协议进入 href。
+function safeLogHref(u) {
+  var s = String(u == null ? '' : u);
+  if (/[\x00-\x1f\x7f]/.test(s)) return '#';
+  if (/^https?:\/\//i.test(s)) return s;
+  if (/^\/[^\/]/.test(s)) return s;
+  return '#';
+}
+
 $(document).ready(function () {
   var pageNum = 1;
 
@@ -103,8 +112,9 @@ $(document).ready(function () {
                 .append(
                   $('<a />', {
                     class: 'typecho-access-logs-list-cell-item',
-                    href: item.url,
-                    target: '__blank',
+                    href: safeLogHref(item.url),
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
                   }).text(item.url.replace(/%23/u, '#'))
                 )
                 .append(
@@ -455,6 +465,7 @@ $(document).ready(function () {
           {
             rpc: 'delete',
             force: force ? 'force' : '',
+            _: window.accessCsrfToken || '',
           }
         ),
         success: function (res) {

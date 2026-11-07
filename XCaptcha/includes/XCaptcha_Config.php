@@ -41,7 +41,7 @@ class XCaptcha_Config{
      */    
     public function getPages()
     {
-        return $this->options->pages;
+        return (array) ($this->options->pages ?? array());
     }
 
     public function isAuthorUncheck()

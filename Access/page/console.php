@@ -4,7 +4,16 @@ include 'header.php';
 include 'menu.php';
 require_once __DIR__ . '/../Access_Bootstrap.php';
 $access = new Access_Core();
+// 后台写操作 CSRF 令牌：只输出到本页 JS，Action 侧用同一站点密钥校验。
+try {
+    $accessCsrf = Access_Action::csrfToken();
+} catch (Exception $e) {
+    $accessCsrf = '';
+}
+$accessCsrfJson = json_encode($accessCsrf, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+if ($accessCsrfJson === false) { $accessCsrfJson = '""'; }
 ?>
+<script>window.accessCsrfToken = <?php echo $accessCsrfJson; ?>;</script>
 <link rel="stylesheet" href="<?php $options->pluginUrl('Access/page/components/bentogrid/index.css')?>">
 <link rel="stylesheet" href="<?php $options->pluginUrl('Access/page/console.css')?>">
 <div class="main">

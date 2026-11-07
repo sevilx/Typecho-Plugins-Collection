@@ -94,7 +94,7 @@ EOF;
     private static function echoGeetestContent($widgetSize, XCaptcha_GeetestInfo $geetest)
     {
         $sizeSelector = ["normal" => "300px", "flexible"=>"100%", "compact" => "150px"];
-        $geetestSize = $sizeSelector[$widgetSize];
+        $geetestSize = $sizeSelector[$widgetSize] ?? '300px';
         $dismod = $geetest->dismod;
 
         $ajaxUri = '/index.php/action/xcaptcha?do=ajaxResponseCaptchaData&type=geetest';

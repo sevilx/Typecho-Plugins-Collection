@@ -41,9 +41,15 @@ class XCaptcha_Utils
      */    
     public static function getCaptchaTokenAndUrl($captchaChoosen, $verifyUrl)
     {
-        $postToken = $_POST[self::$captchaMap[$captchaChoosen][0]] ?? '';
-        // 如果verifyUrl为空字符串就使用captchaMap中默认的
-        $urlPath = $verifyUrl == '' ? self::$captchaMap[$captchaChoosen][1] : $verifyUrl;
+        $map = self::$captchaMap[$captchaChoosen] ?? array('', '');
+        $postToken = $_POST[$map[0]] ?? '';
+        $defaultVerify = isset($map[1]) ? $map[1] : '';
+        // 固定枚举白名单：验证请求会把站点私钥 POST 过去，自定义地址一律拒绝。
+        // 前缀匹配挡不住 DNS rebinding，故不再使用。
+        $candidate = (string) $verifyUrl;
+        $allowed = array_column(self::$captchaMap, 1);
+        $urlPath = ($candidate !== '' && in_array($candidate, $allowed, true))
+            ? $candidate : $defaultVerify;
 
         return [$postToken, $urlPath];
     }
@@ -64,7 +70,17 @@ class XCaptcha_Utils
 			if($widgetColor == 'auto') 		$widgetColor = 'light';
 			if($widgetSize == 'flexible') 	$widgetSize = 'normal';
 		}
-        if($cdnUrl == '') $cdnUrl = self::$cdnUrls[$captchaType];
+        // 固定枚举白名单：自定义 CDN 一律拒绝，避免全站加载任意外部脚本。
+        $cdnUrl = (string) $cdnUrl;
+        $allowedCdn = array_values(self::$cdnUrls);
+        if ($cdnUrl !== '' && !in_array($cdnUrl, $allowedCdn, true)) {
+            $cdnUrl = '';
+        }
+        if ($cdnUrl == '') $cdnUrl = self::$cdnUrls[$captchaType] ?? '';
+        $cdnUrl = htmlspecialchars($cdnUrl, ENT_QUOTES, 'UTF-8');
+        $captchaId = htmlspecialchars((string) $captchaId, ENT_QUOTES, 'UTF-8');
+        $widgetColor = htmlspecialchars((string) $widgetColor, ENT_QUOTES, 'UTF-8');
+        $widgetSize = htmlspecialchars((string) $widgetSize, ENT_QUOTES, 'UTF-8');
         
         $scriptTemplates = [
             "hcaptcha" => "<div class='h-captcha check-label' data-sitekey='{$captchaId}' data-theme='{$widgetColor}' data-size='{$widgetSize}' data-callback='checkCallback'></div>",

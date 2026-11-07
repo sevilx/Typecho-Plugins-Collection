@@ -106,7 +106,7 @@ class Access_Core
             return false;
         }
 
-        $lines = explode('\n', $this->config->blockIps);
+        $lines = preg_split('/\R/', (string) ($this->config->blockIps ?? ''));
         foreach ($lines as $line) {
             $cidr = explode('#', $line)[0];
             $cidr = trim($cidr);
@@ -127,6 +127,30 @@ class Access_Core
      * @access public
      * @return void
      */
+    /**
+     * 规范化访问日志 URL：只保留站内 path?query，剔除协议、主机、控制字符并限长。
+     */
+    private static function sanitizeLogUrl($url)
+    {
+        $url = is_scalar($url) ? (string) $url : '';
+        $url = str_replace(array("\r", "\n", "\0"), '', $url);
+        if (strlen($url) > 512) {
+            $url = substr($url, 0, 512);
+        }
+        $path = parse_url($url, PHP_URL_PATH);
+        $query = parse_url($url, PHP_URL_QUERY);
+        $path = is_string($path) && $path !== '' ? $path : '/';
+        if ($path[0] !== '/') {
+            $path = '/' . $path;
+        }
+        $clean = function ($s) {
+            return preg_replace('/[\x00-\x1F\x7F<>"\']/', '', (string) $s);
+        };
+        $path = $clean($path);
+        $query = is_string($query) ? $clean($query) : '';
+        return $path . ($query !== '' ? '?' . $query : '');
+    }
+
     public function writeLogs($archive = null, $url = null, $content_id = null, $meta_id = null)
     {
         if ($this->isAdmin()) {
@@ -135,6 +159,8 @@ class Access_Core
         if ($url == null) {
             $url = $this->request->getServer('REQUEST_URI');
         }
+        // 只保留站内路径，杜绝 javascript:/data: 协议与超长投毒写进日志表
+        $url = self::sanitizeLogUrl($url);
         $ip = $this->request->getIp();
         if ($this->isBlockIp($ip)) {
             return;
@@ -164,6 +190,21 @@ class Access_Core
             $referer = '';
         }
         $time = Helper::options()->gmtTime + (Helper::options()->timezone - Helper::options()->serverTimezone);
+
+        // 轻量滑动窗口限流：同一 IP 10 秒内最多 30 条，防止匿名刷日志撑爆表。
+        if ($ip !== '') {
+            try {
+                $recent = $this->db->fetchAll($this->db->select('COUNT(1) AS c')
+                    ->from('table.access_logs')
+                    ->where('ip = ?', $ip)
+                    ->where('time >= ?', $time - 10));
+                if (!empty($recent) && (int) $recent[0]['c'] >= 30) {
+                    return;
+                }
+            } catch (Exception $e) {
+                // 限流查询失败不阻断正常写日志
+            }
+        }
 
         if ($archive != null) {
             $parsedArchive = $this->parseArchive($archive);

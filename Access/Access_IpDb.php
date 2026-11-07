@@ -53,12 +53,17 @@ class CityInfo {
     public $anycast          = '';
 
     public function __construct(array $data) {
-        foreach ($data AS $field => $value)
-            $this->{$field} = $value;
+        // PHP 8.2 禁止未声明的动态属性，只接收类内已声明的字段。
+        foreach ($data AS $field => $value) {
+            if (property_exists($this, $field)) {
+                $this->{$field} = $value;
+            }
+        }
     }
 
     public function __get($name) {
-        return $this->{$name};
+        // 返回 null，避免 __get 自引用造成无限递归。
+        return null;
     }
 }
 

@@ -90,7 +90,7 @@ class Access_Page
         if ($this->current_page > 1) {
             $firstPageUrl = $this->buildUrl(1);
             $prevPageUrl = $this->buildUrl($this->current_page - 1);
-            $str .= '<li><a href="' . $prevPageUrl . '">&laquo;</a></li>';
+            $str .= '<li><a href="' . htmlspecialchars((string) $prevPageUrl, ENT_QUOTES, 'UTF-8') . '">&laquo;</a></li>';
         } else {
             $str .= '';
         }
@@ -100,16 +100,16 @@ class Access_Page
             $s = $a[$i];
             if ($s == $this->current_page) {
                 $url = Typecho_Request::getInstance()->getRequestUrl();
-                $str .= '<li class="current"><a href="' . $url . '">' . $s . '</a></li>';
+                $str .= '<li class="current"><a href="' . htmlspecialchars((string) $url, ENT_QUOTES, 'UTF-8') . '">' . $s . '</a></li>';
             } else {
                 $url = $this->buildUrl($s);
-                $str .= '<li><a href="' . $url . '">' . $s . '</a></li>';
+                $str .= '<li><a href="' . htmlspecialchars((string) $url, ENT_QUOTES, 'UTF-8') . '">' . $s . '</a></li>';
             }
         }
         if ($this->current_page < $this->pageNums) {
             $lastPageUrl = $this->buildUrl($this->pageNums);
             $nextPageUrl = $this->buildUrl($this->current_page + 1);
-            $str .= '<li><a href="' . $nextPageUrl . '">&raquo;</a></li>';
+            $str .= '<li><a href="' . htmlspecialchars((string) $nextPageUrl, ENT_QUOTES, 'UTF-8') . '">&raquo;</a></li>';
         } else {
             $str .= '';
         }
