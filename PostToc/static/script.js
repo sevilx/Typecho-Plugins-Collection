@@ -111,6 +111,8 @@ function postTocInit() {
         var a = document.createElement('a');
         a.href = '#' + id;
         a.textContent = heading.textContent;
+        // 移动端面板仍是单行省略，hover / 键盘聚焦时可借 title 读到完整标题
+        a.title = a.textContent;
         li.style.marginLeft = ((parseInt(heading.tagName.substring(1), 10) - minLevel) * 20) + 'px';
         li.appendChild(a);
         tocList.appendChild(li);
@@ -149,7 +151,9 @@ function postTocInit() {
         var left = content.getBoundingClientRect().left
             - tocWidth - gutter + num(cfg.horizontalOffset);
 
-        if (left < 12) {
+        // 24px 而非原来的 12px：留白刚够时目录会贴死视口左缘，
+        // 圆角/阴影被切掉一半，观感上像「面板没显示完整」。
+        if (left < 24) {
             toc.classList.add('toc-inline');
             clearPositionStyles();
             return;
@@ -229,8 +233,12 @@ function postTocInit() {
     });
     function onMouseMove(event) {
         if (!isDragging) return;
-        toc.style.left = (initialLeft + event.clientX - startX) + 'px';
-        toc.style.top = (initialTop + event.clientY - startY) + 'px';
+        // 原版不设边界，目录能被拖到视口外，只剩半截甚至整块消失，
+        // 用户为看全目录越拖越糟。钳制后至少保证面板左缘与标题始终可见。
+        var maxLeft = Math.max(0, window.innerWidth - toc.offsetWidth);
+        var maxTop = Math.max(0, window.innerHeight - 80);
+        toc.style.left = Math.min(maxLeft, Math.max(0, initialLeft + event.clientX - startX)) + 'px';
+        toc.style.top = Math.min(maxTop, Math.max(0, initialTop + event.clientY - startY)) + 'px';
     }
     function onMouseUp() {
         isDragging = false;

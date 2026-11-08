@@ -196,6 +196,69 @@
     text-overflow: clip;
 }
 
+/* 桌面两种布局的修整：插件的移动端断点是 768px，这里从 769px 起步，
+   与下方 @media (max-width:768px) 严格互补，移动端分支一行都不牵动。
+   全部用覆盖而不是改写基础声明，去掉这段媒体查询即可回到原版外观。 */
+@media (min-width: 769px) {
+    /* 长标题改自动折行：300px 面板里单行 ellipsis 会把第一条砍成「…」；
+       anywhere / break-word 兜住中英混排与长串，避免折行后反向撑出横向溢出。 */
+    #post-toc ul li a {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        line-height: 1.45;
+    }
+
+    /* 悬浮态：top 由 script.js 固定 200px，高度上限改成「视口减去顶部 200 与底部 24」，
+       比 70vh 多让出约 100~200px 给目录；max() 留 320px 下限，矮视口不会塌成一条。 */
+    #post-toc:not(.toc-inline) {
+        max-height: max(320px, calc(100vh - 224px));
+        scrollbar-width: auto;
+        scroll-snap-type: y proximity;
+    }
+
+    /* 300px 窄面板里收紧垂直节奏，让 20 条尽量一屏放下，少用内部滚动 */
+    #post-toc:not(.toc-inline) ul li {
+        margin-bottom: 2px;
+        scroll-snap-align: start;
+    }
+    #post-toc:not(.toc-inline) ul li a {
+        padding: 4px 8px;
+    }
+
+    /* 真放不下时把滚动条做明显（深色下同样可见），别让用户以为目录被砍断；
+       滚动停靠在整条起点，避免停在半条标题中间。 */
+    #post-toc:not(.toc-inline)::-webkit-scrollbar {
+        width: 10px;
+    }
+    #post-toc:not(.toc-inline)::-webkit-scrollbar-thumb {
+        border: 2px solid var(--toc-bg);
+        background-clip: padding-box;
+    }
+
+    /* 内联卡片：260px 死高度会把第 6 条从中间硬切，改成高度随内容自然撑开，
+       20 条全在正文流里，页面滚动即可看全，不再需要滚动小容器。 */
+    #post-toc.toc-inline {
+        max-height: none;
+    }
+
+    /* 内联卡片有 582px 以上宽度，按 260px 列宽自动分栏：宽时两列、窄时回落单列，
+       20 条压到约 10 行；li 的层级缩进是 script.js 写的 inline margin-left，原样保留。 */
+    #post-toc.toc-inline ul {
+        column-width: 260px;
+        column-count: 2;
+        column-gap: 24px;
+    }
+
+    /* 分栏时禁止单条目录被拦腰拆到两列，标题连同缩进整体移动 */
+    #post-toc.toc-inline ul li {
+        break-inside: avoid;
+        -webkit-column-break-inside: avoid;
+    }
+}
+
 @media (max-width: 768px) {
     #post-toc {
         bottom: 70px;

@@ -173,7 +173,15 @@ public static function config(Typecho_Widget_Helper_Form $form)
         // 后台可填颜色值，HEX_* 防止管理员输入 </script> 提前闭合脚本块
         $flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES;
 
-        echo '<link rel="stylesheet" href="' . $base . '/static/style.css">' . "\n";
+        // 静态资源原本是裸路径，响应又没带 Cache-Control：ESA / 浏览器会按路径
+        // 长期缓存旧副本，改完样式刷新页面仍看到旧目录。用文件内容 crc32 做版本戳，
+        // 部署即自动失效，不必手工刷 CDN；crc32b 只输出 8 位十六进制，无需再转义。
+        $assetVersion = function ($file) {
+            $path = __DIR__ . '/static/' . $file;
+            return is_file($path) ? (string) hash_file('crc32b', $path) : '1';
+        };
+
+        echo '<link rel="stylesheet" href="' . $base . '/static/style.css?v=' . $assetVersion('style.css') . '">' . "\n";
         echo '<script>';
         foreach (self::settings() as $jsName => $value) {
             $json = json_encode($value, $flags);
@@ -182,7 +190,7 @@ public static function config(Typecho_Widget_Helper_Form $form)
         echo '</script>' . "\n";
         // defer 脚本在 DOM 解析完成后、DOMContentLoaded 之前执行：
         // 既能拿到上面的全局变量，也不阻塞首屏渲染。
-        echo '<script defer src="' . $base . '/static/script.js"></script>' . "\n";
+        echo '<script defer src="' . $base . '/static/script.js?v=' . $assetVersion('script.js') . '"></script>' . "\n";
     }
 
     public static function renderHeader()
